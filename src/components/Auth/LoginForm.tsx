@@ -31,8 +31,7 @@ export const LoginForm: React.FC = () => {
   const demoAccounts = [
     { name: 'Alice Johnson', email: 'alice@company.com', role: 'Manager' },
     { name: 'Bob Martin', email: 'bob@company.com', role: 'Employé' },
-    { name: 'Claire Dubois', email: 'claire@company.com', role: 'Employé' },
-    { name: 'David Wilson', email: 'david@company.com', role: 'Employé' }
+   
   ];
 
   return (
