@@ -113,115 +113,114 @@ export class SupabaseService {
   }
 
   // Time tracking methods
-  async clockIn(employeeId: string, location?: string, latitude?: number, longitude?: number, faceVerified = false): Promise<TimeEntry | null> {
-    try {
-      const { data, error } = await supabase
-        .from('time_entries')
-        .insert({
-          employee_id: employeeId,
-          type: 'clock-in',
-          location,
-          latitude,
-          longitude,
-          face_verified: faceVerified,
-        })
-        .select()
-        .single();
+  // Time tracking methods
+async clockIn(
+  employeeId: string,
+  location?: string,
+  latitude?: number,
+  longitude?: number,
+  faceVerified = false
+): Promise<TimeEntry | null> {
+  try {
+    const { data, error } = await supabase
+      .from('time_entries')
+      .insert({
+        employee_id: employeeId,
+        type: 'clock-in',
+        location,
+        latitude,
+        longitude,
+        face_verified: faceVerified,
+        timestamp: new Date().toISOString(), // stocke en UTC
+      })
+      .select()
+      .single();
 
-      if (error) throw error;
+    if (error) throw error;
 
-      // Create notification
-      await this.createNotification(employeeId, 'Pointage d\'entrée', 'Vous avez pointé votre entrée avec succès', 'success');
-
-      toast.success('Pointage d\'entrée enregistré');
-      return {
-        id: data.id,
-        employeeId: data.employee_id,
-        type: data.type,
-        timestamp: new Date(data.timestamp),
-        location: data.location,
-        notes: data.notes,
-      };
-    } catch (error) {
-      console.error('Error clocking in:', error);
-      toast.error('Erreur lors du pointage d\'entrée');
-      return null;
-    }
+    return {
+      id: data.id,
+      employeeId: data.employee_id,
+      type: data.type,
+      timestamp: new Date(data.timestamp), // JS convertira en local si besoin
+      location: data.location,
+      notes: data.notes,
+    };
+  } catch (error) {
+    console.error('Error clocking in:', error);
+    return null;
   }
+}
 
-  async clockOut(employeeId: string, location?: string, latitude?: number, longitude?: number, notes?: string, faceVerified = false): Promise<TimeEntry | null> {
-    try {
-      const { data, error } = await supabase
-        .from('time_entries')
-        .insert({
-          employee_id: employeeId,
-          type: 'clock-out',
-          location,
-          latitude,
-          longitude,
-          notes,
-          face_verified: faceVerified,
-        })
-        .select()
-        .single();
+async clockOut(
+  employeeId: string,
+  location?: string,
+  latitude?: number,
+  longitude?: number,
+  notes?: string,
+  faceVerified = false
+): Promise<TimeEntry | null> {
+  try {
+    const { data, error } = await supabase
+      .from('time_entries')
+      .insert({
+        employee_id: employeeId,
+        type: 'clock-out',
+        location,
+        latitude,
+        longitude,
+        notes,
+        face_verified: faceVerified,
+        timestamp: new Date().toISOString(), // UTC
+      })
+      .select()
+      .single();
 
-      if (error) throw error;
+    if (error) throw error;
 
-      // Create notification
-      await this.createNotification(employeeId, 'Pointage de sortie', 'Vous avez pointé votre sortie avec succès', 'success');
-
-      toast.success('Pointage de sortie enregistré');
-      return {
-        id: data.id,
-        employeeId: data.employee_id,
-        type: data.type,
-        timestamp: new Date(data.timestamp),
-        location: data.location,
-        notes: data.notes,
-      };
-    } catch (error) {
-      console.error('Error clocking out:', error);
-      toast.error('Erreur lors du pointage de sortie');
-      return null;
-    }
+    return {
+      id: data.id,
+      employeeId: data.employee_id,
+      type: data.type,
+      timestamp: new Date(data.timestamp),
+      location: data.location,
+      notes: data.notes,
+    };
+  } catch (error) {
+    console.error('Error clocking out:', error);
+    return null;
   }
+}
 
-  async getTimeEntries(employeeId?: string, startDate?: Date, endDate?: Date): Promise<TimeEntry[]> {
-    try {
-      let query = supabase
-        .from('time_entries')
-        .select('*')
-        .order('timestamp', { ascending: false });
+async getTimeEntries(
+  employeeId?: string,
+  startDate?: Date,
+  endDate?: Date
+): Promise<TimeEntry[]> {
+  try {
+    let query = supabase.from('time_entries').select('*').order('timestamp', { ascending: false });
 
-      if (employeeId) {
-        query = query.eq('employee_id', employeeId);
-      }
+    if (employeeId) query = query.eq('employee_id', employeeId);
+    if (startDate) query = query.gte('timestamp', startDate.toISOString());
+    if (endDate) query = query.lte('timestamp', endDate.toISOString());
 
-      if (startDate) {
-        query = query.gte('timestamp', startDate.toISOString());
-      }
+    const { data, error } = await query;
+    if (error) throw error;
 
-      if (endDate) {
-        query = query.lte('timestamp', endDate.toISOString());
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      return data.map(entry => ({
-        id: entry.id,
-        employeeId: entry.employee_id,
-        type: entry.type,
-        timestamp: new Date(entry.timestamp),
-        location: entry.location,
-        notes: entry.notes,
-      }));
-    } catch (error) {
-      console.error('Error fetching time entries:', error);
-      return [];
-    }
+    // Convertir timestamp en Date JS pour affichage
+    return data.map(entry => ({
+      id: entry.id,
+      employeeId: entry.employee_id,
+      type: entry.type,
+      timestamp: new Date(entry.timestamp), // reste en UTC, converti côté frontend
+      location: entry.location,
+      notes: entry.notes,
+    }));
+  } catch (error) {
+    console.error('Error fetching time entries:', error);
+    return [];
   }
+}
 
   // Notification methods
   async createNotification(employeeId: string, title: string, message: string, type: 'info' | 'warning' | 'success' | 'error'): Promise<void> {
